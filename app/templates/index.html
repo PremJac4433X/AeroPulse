@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AeroPulse (Keeladi Edition) | Street-Level Air Quality & Ancient Sangam Wind Intelligence</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        sangam: {
+                            50: '#fff7ed',
+                            100: '#ffedd5',
+                            500: '#f97316',
+                            700: '#c2410c',
+                            900: '#7c2d12'
+                        },
+                        aero: {
+                            50: '#ecfdf5',
+                            500: '#10b981',
+                            700: '#047857',
+                            900: '#064e3b'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Marked.js for markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        #map { min-height: 480px; z-index: 10; }
+        #canvas-simulator { background: #0f172a; border-radius: 0.75rem; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased custom-scrollbar">
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-amber-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                    <i class="fa-solid fa-wind text-white text-lg"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="font-black text-xl tracking-tight bg-gradient-to-r from-emerald-400 via-teal-300 to-amber-400 bg-clip-text text-transparent">AeroPulse</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">Keeladi Edition</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 font-medium">Sangam Aerodynamics & Google Gemini 2.5 LLM</p>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="hidden md:flex items-center space-x-1">
+                <a href="#map-section" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition">10m Block Map</a>
+                <a href="#simulator-section" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition">Keezhadi Wind Tunnel</a>
+                <a href="#forecast-section" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition">48h Inversion Forecast</a>
+                <a href="#breathesafe-section" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition">BreatheSafe Route</a>
+                <a href="#planner-section" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition">City Planner</a>
+            </nav>
+
+            <!-- Status and Action Controls -->
+            <div class="flex items-center space-x-3">
+                <div id="gemini-status-pill" class="flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-medium border {% if gemini_ready %}bg-emerald-500/10 text-emerald-400 border-emerald-500/30{% else %}bg-amber-500/10 text-amber-400 border-amber-500/30{% endif %}">
+                    <span class="w-2 h-2 rounded-full {% if gemini_ready %}bg-emerald-400 animate-pulse{% else %}bg-amber-400{% endif %}"></span>
+                    <span id="gemini-status-text">{% if gemini_ready %}Gemini 2.5 Active{% else %}Gemini Key Ready{% endif %}</span>
+                </div>
+
+                <button onclick="openApiKeyModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-lg text-slate-200 border border-slate-700 transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-key text-amber-400"></i>
+                    <span class="hidden sm:inline">API Key</span>
+                </button>
+
+                <button onclick="toggleChatDrawer()" class="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-xs font-semibold rounded-lg text-white shadow-md shadow-emerald-600/30 transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-comments"></i>
+                    <span>Sangam Copilot</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Body -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+
+        <!-- Hero Intelligence Banner -->
+        <section class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/40 border border-slate-800 p-8 sm:p-10 shadow-2xl">
+            <div class="relative z-10 max-w-3xl space-y-4">
+                <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
+                    <i class="fa-solid fa-monument text-amber-400"></i>
+                    <span>2,600-Year Ancient Sangam Civil Engineering × Modern CFD Physics</span>
+                </div>
+                <h1 class="text-3xl sm:text-5xl font-black tracking-tight text-white leading-tight">
+                    Street-Level Clean Air Intelligence, <br/>
+                    <span class="bg-gradient-to-r from-emerald-400 via-teal-300 to-amber-400 bg-clip-text text-transparent">Engineered by Ancient Keezhadi.</span>
+                </h1>
+                <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
+                    Regional weather stations are blind to the toxic microclimates trapped inside deep modern street canyons. AeroPulse solves this with **10-meter block precision**, deploying ancient Keezhadi monsoonal grid aerodynamics and thermal Mutram courtyard stack effects to forecast stagnation and purge vehicular emissions.
+                </p>
+
+                <!-- Key Metrics Row -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4">
+                    <div class="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60">
+                        <div class="text-xs text-slate-400 font-medium">Dosage Reduction</div>
+                        <div class="text-2xl font-black text-emerald-400">-58% PM2.5</div>
+                        <div class="text-[10px] text-slate-500">BreatheSafe corridor route</div>
+                    </div>
+                    <div class="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60">
+                        <div class="text-xs text-slate-400 font-medium">Spatial Resolution</div>
+                        <div class="text-2xl font-black text-teal-400">10-Meter</div>
+                        <div class="text-[10px] text-slate-500">Hyperlocal block polygon grid</div>
+                    </div>
+                    <div class="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60">
+                        <div class="text-xs text-slate-400 font-medium">Early Warning Horizon</div>
+                        <div class="text-2xl font-black text-amber-400">24-48 Hours</div>
+                        <div class="text-[10px] text-slate-500">Nocturnal inversion prediction</div>
+                    </div>
+                    <div class="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60">
+                        <div class="text-xs text-slate-400 font-medium">Ventilation Boost</div>
+                        <div class="text-2xl font-black text-sky-400">2.8× Higher Cv</div>
+                        <div class="text-[10px] text-slate-500">Keezhadi cardinal breeze flushing</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 1: 10-Meter Block Grid Map & Telemetry Inspector -->
+        <section id="map-section" class="space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-2xl font-black text-white flex items-center space-x-2">
+                        <i class="fa-solid fa-map-location-dot text-emerald-400"></i>
+                        <span>10-Meter Block Microclimate Grid</span>
+                    </h2>
+                    <p class="text-xs text-slate-400">Vaigai Ancient River Corridor & Modern Madurai Sector — Click any block polygon to inspect aerodynamic telemetry</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs text-slate-400">Filter Overlay:</span>
+                    <button onclick="setMapMetric('aqi')" id="btn-metric-aqi" class="px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-500 text-white">AQI</button>
+                    <button onclick="setMapMetric('pm25')" id="btn-metric-pm25" class="px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700">PM2.5</button>
+                    <button onclick="setMapMetric('cv')" id="btn-metric-cv" class="px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700">Ventilation (Cv)</button>
+                    <button onclick="loadBlockGrid()" class="px-2.5 py-1 rounded-md text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700" title="Refresh Telemetry">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Leaflet Map Container -->
+                <div class="lg:col-span-2 rounded-2xl overflow-hidden border border-slate-800 shadow-xl relative">
+                    <div id="map" class="w-full h-full min-h-[480px]"></div>
+                    <!-- Map Legend Overlay -->
+                    <div class="absolute bottom-4 left-4 z-20 bg-slate-900/90 backdrop-blur-md border border-slate-700 p-3 rounded-xl text-xs space-y-1.5 shadow-lg">
+                        <div class="font-bold text-slate-200">Legend: Stagnation Risk</div>
+                        <div class="flex items-center space-x-2"><span class="w-3 h-3 rounded-sm bg-emerald-500"></span><span class="text-slate-300">Low (Keezhadi Cardinal Grid)</span></div>
+                        <div class="flex items-center space-x-2"><span class="w-3 h-3 rounded-sm bg-amber-500"></span><span class="text-slate-300">Moderate (Mutram Courtyard)</span></div>
+                        <div class="flex items-center space-x-2"><span class="w-3 h-3 rounded-sm bg-rose-500"></span><span class="text-slate-300">Severe (Trapped Modern Canyon)</span></div>
+                    </div>
+                </div>
+
+                <!-- Block Inspector Card -->
+                <div id="block-inspector-panel" class="rounded-2xl bg-slate-900 border border-slate-800 p-6 flex flex-col justify-between shadow-xl">
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                            <div>
+                                <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Active Inspector</span>
+                                <h3 id="inspect-title" class="text-lg font-black text-white">Select a Block</h3>
+                            </div>
+                            <span id="inspect-risk-badge" class="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-800 text-slate-400">Awaiting Click</span>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 text-xs">
+                            <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+                                <span class="text-slate-400">Composite AQI</span>
+                                <div id="inspect-aqi" class="text-2xl font-black text-slate-100">--</div>
+                            </div>
+                            <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+                                <span class="text-slate-400">PM2.5 Concentration</span>
+                                <div id="inspect-pm25" class="text-2xl font-black text-emerald-400">-- <span class="text-xs">µg/m³</span></div>
+                            </div>
+                            <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+                                <span class="text-slate-400">Aspect Ratio (H/W)</span>
+                                <div id="inspect-hw" class="text-lg font-bold text-slate-200">--</div>
+                            </div>
+                            <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+                                <span class="text-slate-400">Ventilation Coeff (Cv)</span>
+                                <div id="inspect-cv" class="text-lg font-bold text-teal-300">--</div>
+                            </div>
+                            <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+                                <span class="text-slate-400">NO2 Gas</span>
+                                <div id="inspect-no2" class="text-base font-bold text-slate-300">-- ppb</div>
+                            </div>
+                            <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+                                <span class="text-slate-400">Carbon Monoxide (CO)</span>
+                                <div id="inspect-co" class="text-base font-bold text-slate-300">-- ppm</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 text-xs space-y-1">
+                            <div class="text-slate-400 font-semibold flex items-center space-x-1.5">
+                                <i class="fa-solid fa-scroll text-amber-400"></i>
+                                <span>Sangam Architectural Analysis:</span>
+                            </div>
+                            <p id="inspect-note" class="text-slate-300 italic leading-relaxed">
+                                Click any polygon on the map to evaluate street canyon skimming flow vortices vs ancient Keezhadi laminar wind flushing.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-800">
+                        <button id="btn-inspect-mitigate" onclick="requestHotspotMitigation()" disabled class="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-xs font-semibold rounded-xl text-white border border-slate-700 transition flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i>
+                            <span>Generate Gemini Sangam Mitigation Playbook</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2: Keezhadi Wind Tunnel Simulator (2D Canvas Physics) -->
+        <section id="simulator-section" class="rounded-3xl bg-slate-900 border border-slate-800 p-6 sm:p-8 space-y-6 shadow-2xl">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                <div>
+                    <div class="inline-flex items-center space-x-2 text-xs font-bold text-teal-400 uppercase tracking-wider">
+                        <i class="fa-solid fa-atom"></i>
+                        <span>Real-Time 2D Particle Fluid Dynamics</span>
+                    </div>
+                    <h2 class="text-2xl font-black text-white">Keezhadi Sandbox Wind Tunnel</h2>
+                    <p class="text-xs text-slate-400">Simulate vehicular particulate dispersion across asymmetric modern canyons vs ancient Keezhadi cardinal grids</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="setSimulatorScenario('modern')" id="btn-scen-modern" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-rose-600 text-white shadow-md shadow-rose-600/20">Modern Canyon (H/W 3.2)</button>
+                    <button onclick="setSimulatorScenario('keezhadi')" id="btn-scen-keezhadi" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700">Keezhadi Cardinal Grid</button>
+                    <button onclick="setSimulatorScenario('hybrid')" id="btn-scen-hybrid" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700">Hybrid Mutram Retrofit</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Canvas Area -->
+                <div class="lg:col-span-2 flex flex-col space-y-3">
+                    <div class="relative rounded-2xl overflow-hidden border border-slate-800 shadow-inner">
+                        <canvas id="canvas-simulator" width="760" height="420" class="w-full h-auto block"></canvas>
+                        <!-- Live Simulation HUD Overlay -->
+                        <div class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md border border-slate-700/80 px-3 py-2 rounded-xl flex items-center space-x-4 text-xs">
+                            <div>
+                                <span class="text-slate-400">Particles:</span>
+                                <span id="hud-particles" class="font-bold text-white ml-1">0</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-400">Evacuation Rate:</span>
+                                <span id="hud-evac" class="font-bold text-emerald-400 ml-1">32%</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-400">Stagnation:</span>
+                                <span id="hud-stagnation" class="font-bold text-rose-400 ml-1">78/100</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Simulator Controls -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-950 p-4 rounded-2xl border border-slate-800 text-xs">
+                        <div>
+                            <div class="flex justify-between text-slate-400 mb-1">
+                                <span>Wind Velocity</span>
+                                <span id="val-wind-speed" class="text-white font-bold">3.2 m/s</span>
+                            </div>
+                            <input type="range" id="input-wind-speed" min="0.5" max="8.0" step="0.1" value="3.2" oninput="updateWindSpeed(this.value)" class="w-full accent-emerald-500">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-slate-400 mb-1">
+                                <span>Wind Direction (Monsoon)</span>
+                                <span id="val-wind-angle" class="text-amber-400 font-bold">SW (225°)</span>
+                            </div>
+                            <select id="select-wind-preset" onchange="updateWindAnglePreset(this.value)" class="w-full bg-slate-900 border border-slate-700 text-slate-200 rounded-lg p-1.5 text-xs">
+                                <option value="225">Southwest Monsoon (225°)</option>
+                                <option value="45">Northeast Monsoon (45°)</option>
+                                <option value="270">Westerly Cross-Wind (270°)</option>
+                                <option value="180">Perpendicular Skim (180°)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-slate-400 mb-1">
+                                <span>Traffic Emission Load</span>
+                                <span id="val-emission-rate" class="text-white font-bold">High (Canyon Choke)</span>
+                            </div>
+                            <input type="range" id="input-emission-rate" min="1" max="10" step="1" value="7" oninput="updateEmissionRate(this.value)" class="w-full accent-rose-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gemini CFD Critique & Archeo Analysis Panel -->
+                <div class="rounded-2xl bg-slate-950 border border-slate-800 p-5 flex flex-col justify-between space-y-4">
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+                                <i class="fa-solid fa-microchip text-emerald-400"></i>
+                                <span>Gemini 2.5 CFD Critique</span>
+                            </h3>
+                            <span class="text-[10px] text-slate-400 px-2 py-0.5 rounded bg-slate-800">Oke 1988 Model</span>
+                        </div>
+                        <div id="cfd-critique-content" class="text-xs text-slate-300 space-y-2 leading-relaxed max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
+                            <p class="text-slate-400 italic">
+                                Run the simulation in any scenario and click "Critique CFD Simulation" to generate an architectural fluid dynamics report powered by Gemini 2.5 Flash.
+                            </p>
+                        </div>
+                    </div>
+
+                    <button onclick="requestCfdCritique()" id="btn-request-cfd" class="w-full py-2.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-xs font-semibold rounded-xl text-white shadow-lg shadow-emerald-600/20 transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-calculator text-white"></i>
+                        <span>Critique CFD Simulation with Gemini</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 3: 48h Inversion Forecast & Dawn Stagnation Alerts -->
+        <section id="forecast-section" class="rounded-3xl bg-slate-900 border border-slate-800 p-6 sm:p-8 space-y-6 shadow-2xl">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                <div>
+                    <div class="inline-flex items-center space-x-2 text-xs font-bold text-amber-400 uppercase tracking-wider">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span>Predictive Atmospheric Modeling</span>
+                    </div>
+                    <h2 class="text-2xl font-black text-white">24-48 Hour Inversion & Stagnation Forecast</h2>
+                    <p class="text-xs text-slate-400">Nocturnal boundary layer collapse, dawn stagnation peaks, and Sangam monsoonal purging windows</p>
+                </div>
+                <button onclick="requestForecastBulletin()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-xl text-white border border-slate-700 transition flex items-center space-x-2">
+                    <i class="fa-solid fa-file-waveform text-amber-400"></i>
+                    <span>Generate Gemini Atmospheric Bulletin</span>
+                </button>
+            </div>
+
+            <!-- Active Early Warning Alert Cards -->
+            <div id="forecast-alerts-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Populated via JS -->
+            </div>
+
+            <!-- Chart.js Graph -->
+            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                <canvas id="forecastChart" height="90"></canvas>
+            </div>
+
+            <!-- Bulletin Output Container -->
+            <div id="forecast-bulletin-container" class="hidden p-5 rounded-2xl bg-slate-950 border border-slate-800 text-xs text-slate-300 leading-relaxed space-y-2">
+                <!-- Populated via Gemini -->
+            </div>
+        </section>
+
+        <!-- SECTION 4: BreatheSafe Clean Air Route Calculator -->
+        <section id="breathesafe-section" class="rounded-3xl bg-slate-900 border border-slate-800 p-6 sm:p-8 space-y-6 shadow-2xl">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                <div>
+                    <div class="inline-flex items-center space-x-2 text-xs font-bold text-emerald-400 uppercase tracking-wider">
+                        <i class="fa-solid fa-person-walking"></i>
+                        <span>Citizen Exposure Minimization</span>
+                    </div>
+                    <h2 class="text-2xl font-black text-white">BreatheSafe Navigation Engine</h2>
+                    <p class="text-xs text-slate-400">Navigate via ancient Keezhadi breeze corridors to reduce inhaled particulate dosage by up to 58%</p>
+                </div>
+                <button onclick="calculateBreatheSafeRoute()" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 text-xs font-semibold rounded-xl text-white shadow-md shadow-emerald-600/30 transition flex items-center space-x-2">
+                    <i class="fa-solid fa-route"></i>
+                    <span>Recalculate Route Comparison</span>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Route Cards Comparison -->
+                <div class="space-y-4">
+                    <!-- Standard Arterial Highway Card -->
+                    <div class="p-5 rounded-2xl bg-rose-950/20 border border-rose-900/40 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-3 h-3 rounded-full bg-rose-500"></span>
+                                <h3 class="text-sm font-bold text-rose-200">Standard Arterial Highway Path</h3>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300">Severe Canyon Trap</span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-xs">
+                            <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+                                <span class="text-slate-400">Distance</span>
+                                <div class="text-sm font-bold text-white">1.85 km</div>
+                            </div>
+                            <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+                                <span class="text-slate-400">Walking Time</span>
+                                <div class="text-sm font-bold text-white">23 mins</div>
+                            </div>
+                            <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+                                <span class="text-slate-400">Inhaled PM2.5</span>
+                                <div class="text-sm font-black text-rose-400">61.8 µg</div>
+                            </div>
+                        </div>
+                        <p class="text-xs text-rose-300/80 italic">Pedestrian walks inside stagnant commercial canyon with trapped diesel exhaust.</p>
+                    </div>
+
+                    <!-- BreatheSafe Ancient Sangam Corridor Card -->
+                    <div class="p-5 rounded-2xl bg-emerald-950/20 border border-emerald-900/40 space-y-3 shadow-lg shadow-emerald-950/30">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-3 h-3 rounded-full bg-emerald-400"></span>
+                                <h3 class="text-sm font-bold text-emerald-200">BreatheSafe Ancient Sangam Breezeway</h3>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300">Optimal Airflow</span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-xs">
+                            <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+                                <span class="text-slate-400">Distance (+7%)</span>
+                                <div class="text-sm font-bold text-white">1.98 km</div>
+                            </div>
+                            <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+                                <span class="text-slate-400">Walking Time</span>
+                                <div class="text-sm font-bold text-white">25 mins</div>
+                            </div>
+                            <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+                                <span class="text-slate-400">Inhaled PM2.5</span>
+                                <div class="text-sm font-black text-emerald-400">21.6 µg (-65%)</div>
+                            </div>
+                        </div>
+                        <p class="text-xs text-emerald-300/80 italic">Channels through Keezhadi cardinal wind corridors and shaded Mutram thermal chimneys.</p>
+                    </div>
+
+                    <!-- Turn-by-Turn Guidance -->
+                    <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-xs space-y-2">
+                        <div class="font-bold text-slate-300 flex items-center space-x-2">
+                            <i class="fa-solid fa-signs-post text-emerald-400"></i>
+                            <span>BreatheSafe Turn-by-Turn Cleansing Guidance</span>
+                        </div>
+                        <ul id="breathesafe-steps" class="space-y-1.5 text-slate-400">
+                            <!-- Populated via JS -->
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Route Map Preview -->
+                <div class="rounded-2xl overflow-hidden border border-slate-800 relative min-h-[360px]">
+                    <div id="route-map" class="w-full h-full min-h-[360px]"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 5: City Planner View & Hotspot Playbook -->
+        <section id="planner-section" class="rounded-3xl bg-slate-900 border border-slate-800 p-6 sm:p-8 space-y-6 shadow-2xl">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                <div>
+                    <div class="inline-flex items-center space-x-2 text-xs font-bold text-amber-400 uppercase tracking-wider">
+                        <i class="fa-solid fa-city"></i>
+                        <span>Urban Aerodynamic Retrofitting</span>
+                    </div>
+                    <h2 class="text-2xl font-black text-white">City Planner Hotspot Playbook</h2>
+                    <p class="text-xs text-slate-400">Ranked urban canyon hotspots requiring Keezhadi architectural interventions (pilotis breezeways, mutram courtyards, roof vortex breakers)</p>
+                </div>
+            </div>
+
+            <!-- Hotspots Table -->
+            <div class="overflow-x-auto rounded-2xl border border-slate-800">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-950 text-slate-400 uppercase font-semibold border-b border-slate-800">
+                        <tr>
+                            <th class="p-3">Block ID</th>
+                            <th class="p-3">Typology</th>
+                            <th class="p-3">Aspect Ratio (H/W)</th>
+                            <th class="p-3">AQI</th>
+                            <th class="p-3">Ventilation (Cv)</th>
+                            <th class="p-3">Stagnation Risk</th>
+                            <th class="p-3 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="planner-hotspots-tbody" class="divide-y divide-slate-800/60 bg-slate-900">
+                        <!-- Populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Mitigation Playbook Modal Output Container -->
+            <div id="planner-playbook-output" class="hidden p-5 rounded-2xl bg-slate-950 border border-slate-800 text-xs text-slate-300 leading-relaxed space-y-2">
+                <!-- Populated via Gemini -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-950 border-t border-slate-900 py-8 text-center text-xs text-slate-500 space-y-2">
+        <p>🍃 <strong>AeroPulse (Keeladi Edition)</strong> — Inspired by Archaeological Survey of India (ASI) Keezhadi Excavations & Sangam Literature (Maduraikkāñci).</p>
+        <p>Built with FastAPI, Google GenAI SDK (Gemini 2.5 Flash), Tailwind CSS, Leaflet.js, and Canvas CFD Physics.</p>
+    </footer>
+
+    <!-- Sangam Copilot Chat Drawer -->
+    <div id="chat-drawer" class="fixed inset-y-0 right-0 z-50 w-full sm:w-[440px] bg-slate-900 border-l border-slate-800 shadow-2xl transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
+        <!-- Chat Header -->
+        <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm border border-emerald-500/30">
+                    <i class="fa-solid fa-feather-pointed"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-white">AeroPulse Sangam Copilot</h3>
+                    <p class="text-[10px] text-slate-400">Gemini 2.5 Flash Fluid Dynamics Assistant</p>
+                </div>
+            </div>
+            <button onclick="toggleChatDrawer()" class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition">
+                <i class="fa-solid fa-xmark text-base"></i>
+            </button>
+        </div>
+
+        <!-- Quick Question Prompts -->
+        <div class="px-4 py-2.5 bg-slate-900/60 border-b border-slate-800 flex items-center space-x-2 overflow-x-auto custom-scrollbar text-[11px]">
+            <button onclick="sendQuickPrompt('Explain Mutram courtyard thermal chimney stack effect in Keezhadi')" class="whitespace-nowrap px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">Mutram Stack Effect</button>
+            <button onclick="sendQuickPrompt('How did Keezhadi orthogonal avenues align with monsoons?')" class="whitespace-nowrap px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">Monsoon Cleansing</button>
+            <button onclick="sendQuickPrompt('What causes Oke skimming flow vortex traps in street canyons?')" class="whitespace-nowrap px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">Canyon Traps</button>
+        </div>
+
+        <!-- Chat Messages Container -->
+        <div id="chat-messages" class="flex-grow p-4 overflow-y-auto space-y-4 custom-scrollbar text-xs">
+            <div class="flex items-start space-x-2">
+                <div class="w-6 h-6 rounded-md bg-emerald-600 text-white flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">
+                    <i class="fa-solid fa-leaf"></i>
+                </div>
+                <div class="bg-slate-800/80 p-3 rounded-2xl rounded-tl-none border border-slate-700/60 text-slate-200 leading-relaxed max-w-[85%]">
+                    Greetings! I am the <strong>AeroPulse Copilot</strong>, trained on Sangam urban archaeology and fluid dynamics. Ask me anything about Keezhadi's monsoonal street planning, Mutram stack buoyancy, or how to mitigate modern urban canyon pollution!
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Input Form -->
+        <div class="p-3 border-t border-slate-800 bg-slate-950">
+            <form onsubmit="handleChatSubmit(event)" class="flex items-center space-x-2">
+                <input type="text" id="chat-input" placeholder="Ask about Sangam aerodynamics or canyon fixes..." class="flex-grow bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition">
+                <button type="submit" id="chat-send-btn" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-emerald-600/30 transition flex-shrink-0">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- API Key Configuration Modal -->
+    <div id="api-key-modal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-key text-amber-400"></i>
+                    <h3 class="font-bold text-white text-base">Google Gemini API Key</h3>
+                </div>
+                <button onclick="closeApiKeyModal()" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed">
+                Connect your Google Gemini API key to activate real-time Gemini 2.5 Flash aerodynamic critiques, atmospheric bulletins, and copilot responses.
+            </p>
+            <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">API Key</label>
+                <input type="password" id="modal-api-key-input" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-800 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
+            </div>
+            <div class="flex items-center justify-end space-x-2 pt-2">
+                <button onclick="closeApiKeyModal()" class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white">Cancel</button>
+                <button onclick="saveApiKey()" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 transition">Save Key</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application JavaScript Logic -->
+    <script>
+        // State variables
+        let map, routeMap;
+        let blocksLayer = null;
+        let currentMapMetric = 'aqi';
+        let allBlocksData = null;
+        let selectedBlock = null;
+        let chatHistory = [];
+
+        // Simulator State
+        let simScenario = 'modern';
+        let simWindSpeed = 3.2;
+        let simWindAngle = 225; // degrees
+        let simEmissionRate = 7;
+        let particles = [];
+        let simAnimationId = null;
+
+        // Initialize Application
+        document.addEventListener('DOMContentLoaded', () => {
+            initLeafletMap();
+            initRouteMap();
+            loadBlockGrid();
+            initSimulator();
+            loadForecastData();
+            calculateBreatheSafeRoute();
+        });
+
+        // 1. MAP LOGIC
+        function initLeafletMap() {
+            map = L.map('map', { zoomControl: true }).setView([9.8638, 78.1834], 16);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(map);
+        }
+
+        function setMapMetric(metric) {
+            currentMapMetric = metric;
+            ['aqi', 'pm25', 'cv'].forEach(m => {
+                const btn = document.getElementById(`btn-metric-${m}`);
+                if (btn) {
+                    btn.className = (m === metric)
+                        ? "px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-500 text-white"
+                        : "px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700";
+                }
+            });
+            if (allBlocksData) renderBlocksOnMap(allBlocksData);
+        }
+
+        async function loadBlockGrid() {
+            try {
+                const res = await fetch('/api/blocks');
+                const data = await res.json();
+                allBlocksData = data;
+                renderBlocksOnMap(data);
+                populatePlannerHotspots(data);
+            } catch (err) {
+                console.error("Failed to load blocks:", err);
+            }
+        }
+
+        function renderBlocksOnMap(geoData) {
+            if (blocksLayer) map.removeLayer(blocksLayer);
+
+            blocksLayer = L.geoJSON(geoData, {
+                style: (feature) => {
+                    const props = feature.properties;
+                    let color = '#10b981'; // Green
+                    let fillOpacity = 0.55;
+
+                    if (currentMapMetric === 'aqi') {
+                        if (props.aqi > 200) color = '#ef4444';
+                        else if (props.aqi > 100) color = '#f97316';
+                        else if (props.aqi > 50) color = '#eab308';
+                    } else if (currentMapMetric === 'pm25') {
+                        if (props.pm25 > 120) color = '#dc2626';
+                        else if (props.pm25 > 60) color = '#f59e0b';
+                    } else if (currentMapMetric === 'cv') {
+                        if (props.cv_ventilation > 0.7) color = '#06b6d4';
+                        else if (props.cv_ventilation > 0.4) color = '#3b82f6';
+                        else color = '#9333ea';
+                    }
+
+                    return {
+                        color: '#0f172a',
+                        weight: 1.5,
+                        fillColor: color,
+                        fillOpacity: fillOpacity
+                    };
+                },
+                onEachFeature: (feature, layer) => {
+                    layer.on('click', () => {
+                        inspectBlock(feature.properties);
+                    });
+                }
+            }).addTo(map);
+
+            if (geoData.features.length > 0 && !selectedBlock) {
+                inspectBlock(geoData.features[0].properties);
+            }
+        }
+
+        function inspectBlock(p) {
+            selectedBlock = p;
+            document.getElementById('inspect-title').innerText = p.name;
+            document.getElementById('inspect-aqi').innerText = p.aqi;
+            document.getElementById('inspect-pm25').innerHTML = `${p.pm25} <span class="text-xs">µg/m³</span>`;
+            document.getElementById('inspect-hw').innerText = `${p.canyon_hw} : 1`;
+            document.getElementById('inspect-cv').innerText = p.cv_ventilation;
+            document.getElementById('inspect-no2').innerText = `${p.no2} ppb`;
+            document.getElementById('inspect-co').innerText = `${p.co} ppm`;
+            document.getElementById('inspect-note').innerText = p.archaeological_note;
+
+            const badge = document.getElementById('inspect-risk-badge');
+            badge.innerText = `${p.stagnation_risk} Risk`;
+            if (p.stagnation_risk === 'Severe') {
+                badge.className = "px-2.5 py-1 text-xs font-bold rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30";
+            } else if (p.stagnation_risk === 'High') {
+                badge.className = "px-2.5 py-1 text-xs font-bold rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30";
+            } else {
+                badge.className = "px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+            }
+
+            document.getElementById('btn-inspect-mitigate').disabled = false;
+        }
+
+        async function requestHotspotMitigation() {
+            if (!selectedBlock) return;
+            const btn = document.getElementById('btn-inspect-mitigate');
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Formulating Sangam Interventions...</span>`;
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/gemini/planner-mitigation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        block_id: selectedBlock.id,
+                        canyon_hw: selectedBlock.canyon_hw,
+                        aqi: selectedBlock.aqi,
+                        dominant_pollutant: 'PM2.5',
+                        cv_ventilation: selectedBlock.cv_ventilation
+                    })
+                });
+                const data = await res.json();
+                const output = document.getElementById('planner-playbook-output');
+                output.classList.remove('hidden');
+                output.innerHTML = marked.parse(data.playbook);
+                output.scrollIntoView({ behavior: 'smooth' });
+            } catch (err) {
+                console.error(err);
+            } finally {
+                btn.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i> <span>Generate Gemini Sangam Mitigation Playbook</span>`;
+                btn.disabled = false;
+            }
+        }
+
+        // 2. SIMULATOR LOGIC (2D Physics Canvas)
+        function initSimulator() {
+            const canvas = document.getElementById('canvas-simulator');
+            const ctx = canvas.getContext('2d');
+
+            // Initialize particles
+            particles = [];
+            for (let i = 0; i < 90; i++) {
+                spawnParticle(canvas.width, canvas.height);
+            }
+
+            function animate() {
+                updateAndDrawSimulator(canvas, ctx);
+                simAnimationId = requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        function setSimulatorScenario(scenario) {
+            simScenario = scenario;
+            ['modern', 'keezhadi', 'hybrid'].forEach(s => {
+                const btn = document.getElementById(`btn-scen-${s}`);
+                if (btn) {
+                    btn.className = (s === scenario)
+                        ? "px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
+                        : "px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700";
+                }
+            });
+            particles = [];
+        }
+
+        function updateWindSpeed(v) {
+            simWindSpeed = parseFloat(v);
+            document.getElementById('val-wind-speed').innerText = `${simWindSpeed.toFixed(1)} m/s`;
+        }
+
+        function updateWindAnglePreset(v) {
+            simWindAngle = parseInt(v);
+            const labelMap = { 225: "SW (225°)", 45: "NE (45°)", 270: "Westerly (270°)", 180: "Skimming (180°)" };
+            document.getElementById('val-wind-angle').innerText = labelMap[simWindAngle] || `${simWindAngle}°`;
+        }
+
+        function updateEmissionRate(v) {
+            simEmissionRate = parseInt(v);
+            const labels = ["Low", "Moderate", "High (Canyon Choke)", "Severe Gridlock"];
+            const idx = Math.min(3, Math.floor(simEmissionRate / 3));
+            document.getElementById('val-emission-rate').innerText = labels[idx];
+        }
+
+        function spawnParticle(w, h) {
+            particles.push({
+                x: 10 + Math.random() * 50,
+                y: h - 60 - Math.random() * 40,
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: (Math.random() - 0.5) * 0.5,
+                life: 0,
+                maxLife: 300 + Math.random() * 200,
+                radius: 2 + Math.random() * 2.5
+            });
+        }
+
+        function updateAndDrawSimulator(canvas, ctx) {
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw Wind Flow Vector Arrows at top
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            for (let y = 30; y < 100; y += 30) {
+                ctx.beginPath();
+                ctx.moveTo(30, y);
+                ctx.lineTo(w - 30, y);
+                ctx.stroke();
+            }
+
+            // Draw Buildings according to scenario
+            if (simScenario === 'modern') {
+                // Tall buildings with deep canyon H/W = 3.2
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = '#475569';
+                ctx.lineWidth = 2;
+                // Left tower
+                ctx.fillRect(160, 100, 140, h - 100);
+                ctx.strokeRect(160, 100, 140, h - 100);
+                // Right tower
+                ctx.fillRect(460, 100, 140, h - 100);
+                ctx.strokeRect(460, 100, 140, h - 100);
+
+                // Vortex indication circle
+                ctx.strokeStyle = 'rgba(239, 68, 68, 0.25)';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.arc(380, h - 150, 75, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                document.getElementById('hud-evac').innerText = "28%";
+                document.getElementById('hud-stagnation').innerText = "84/100";
+            } else if (simScenario === 'keezhadi') {
+                // Keezhadi Orthogonal Boulevard: wide avenue, low rise H/W = 0.8
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = '#10b981';
+                ctx.lineWidth = 2;
+                // Left pavilion
+                ctx.fillRect(120, 240, 130, h - 240);
+                ctx.strokeRect(120, 240, 130, h - 240);
+                // Right pavilion
+                ctx.fillRect(510, 240, 130, h - 240);
+                ctx.strokeRect(510, 240, 130, h - 240);
+
+                // Laminar flow arrows
+                ctx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
+                ctx.lineWidth = 2;
+                for (let yy = 270; yy < h - 40; yy += 35) {
+                    ctx.beginPath();
+                    ctx.moveTo(270, yy);
+                    ctx.lineTo(490, yy);
+                    ctx.stroke();
+                }
+
+                document.getElementById('hud-evac').innerText = "86%";
+                document.getElementById('hud-stagnation').innerText = "14/100";
+            } else {
+                // Hybrid Mutram Retrofit: buildings with ground-floor breezeway aperture & courtyard
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 2;
+                // Left building with carved breezeway
+                ctx.fillRect(160, 120, 140, h - 200);
+                ctx.strokeRect(160, 120, 140, h - 200);
+                // Breezeway tunnel below
+                ctx.strokeRect(160, h - 80, 140, 80);
+
+                // Right building with open mutram courtyard shaft
+                ctx.fillRect(460, 120, 140, h - 120);
+                ctx.strokeRect(460, 120, 140, h - 120);
+
+                // Thermal updraft arrow in courtyard
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(530, h - 30);
+                ctx.lineTo(530, 90);
+                ctx.stroke();
+
+                document.getElementById('hud-evac').innerText = "68%";
+                document.getElementById('hud-stagnation').innerText = "28/100";
+            }
+
+            // Ground line
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(0, h - 10);
+            ctx.lineTo(w, h - 10);
+            ctx.stroke();
+
+            // Spawn new particles according to emission rate
+            if (particles.length < simEmissionRate * 18) {
+                spawnParticle(w, h);
+            }
+
+            // Update & render particles
+            document.getElementById('hud-particles').innerText = particles.length;
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.life++;
+
+                if (simScenario === 'modern') {
+                    // Trapped inside canyon between x: 300 and 460
+                    if (p.x > 280 && p.x < 480 && p.y > 100) {
+                        // Circular vortex recirculation
+                        const cx = 380, cy = h - 150;
+                        const angle = Math.atan2(p.y - cy, p.x - cx) + (0.04 * simWindSpeed);
+                        const rad = Math.sqrt((p.x - cx) ** 2 + (p.y - cy) ** 2);
+                        p.x = cx + Math.cos(angle) * rad;
+                        p.y = cy + Math.sin(angle) * rad;
+                    } else {
+                        p.x += simWindSpeed * 1.2;
+                        p.y += (Math.random() - 0.5) * 1.5;
+                    }
+                } else if (simScenario === 'keezhadi') {
+                    // Smooth laminar sweep
+                    p.x += simWindSpeed * 1.8;
+                    p.y += (Math.random() - 0.5) * 0.8;
+                } else {
+                    // Hybrid: particles swept through breezeway and lifted by mutram chimney
+                    if (p.x > 480 && p.x < 580) {
+                        p.y -= 1.8 * simWindSpeed; // buoyant updraft
+                        p.x += 0.8;
+                    } else {
+                        p.x += simWindSpeed * 1.4;
+                    }
+                }
+
+                // Render particle
+                const alpha = Math.max(0, 1 - (p.life / p.maxLife));
+                ctx.fillStyle = simScenario === 'modern'
+                    ? `rgba(244, 63, 94, ${alpha})`
+                    : (simScenario === 'keezhadi' ? `rgba(16, 185, 129, ${alpha})` : `rgba(56, 189, 248, ${alpha})`);
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Remove dead or offscreen particles
+                if (p.life > p.maxLife || p.x > w || p.y < 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        async function requestCfdCritique() {
+            const btn = document.getElementById('btn-request-cfd');
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Computing CFD Critique...</span>`;
+            btn.disabled = true;
+
+            const evacVal = simScenario === 'modern' ? 28 : (simScenario === 'keezhadi' ? 86 : 68);
+            const stagVal = simScenario === 'modern' ? 84 : (simScenario === 'keezhadi' ? 14 : 28);
+
+            try {
+                const res = await fetch('/api/gemini/analyze-simulator', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        scenario: simScenario === 'modern' ? 'Modern Deep Canyon' : (simScenario === 'keezhadi' ? 'Keezhadi Cardinal Grid' : 'Hybrid Sangam Retrofit'),
+                        wind_speed: simWindSpeed,
+                        wind_direction_deg: simWindAngle,
+                        emission_rate: simEmissionRate * 10,
+                        evacuation_rate: evacVal,
+                        stagnation_index: stagVal
+                    })
+                });
+                const data = await res.json();
+                document.getElementById('cfd-critique-content').innerHTML = marked.parse(data.critique);
+            } catch (err) {
+                console.error(err);
+            } finally {
+                btn.innerHTML = `<i class="fa-solid fa-calculator text-white"></i> <span>Critique CFD Simulation with Gemini</span>`;
+                btn.disabled = false;
+            }
+        }
+
+        // 3. FORECAST LOGIC
+        async function loadForecastData() {
+            try {
+                const res = await fetch('/api/forecast');
+                const data = await res.json();
+
+                // Render Alerts
+                const container = document.getElementById('forecast-alerts-container');
+                container.innerHTML = data.active_alerts.map(a => `
+                    <div class="p-4 rounded-2xl ${a.level === 'CRITICAL' ? 'bg-rose-950/20 border-rose-900/40 text-rose-200' : 'bg-emerald-950/20 border-emerald-900/40 text-emerald-200'} border space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${a.level === 'CRITICAL' ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'}">${a.level} ALERT</span>
+                            <span class="text-xs text-slate-400 font-medium">${a.window}</span>
+                        </div>
+                        <h4 class="text-sm font-bold text-white">${a.type}</h4>
+                        <p class="text-xs text-slate-300">${a.summary}</p>
+                        <div class="pt-1 text-[11px] text-slate-400">
+                            <strong>Directives:</strong> ${a.recommended_action}
+                        </div>
+                    </div>
+                `).join('');
+
+                // Render Chart.js
+                renderForecastChart(data.hourly.slice(0, 24));
+            } catch (err) {
+                console.error("Forecast load error:", err);
+            }
+        }
+
+        function renderForecastChart(hourly) {
+            const ctx = document.getElementById('forecastChart').getContext('2d');
+            const labels = hourly.map(h => h.display_time);
+            const canyonPm25 = hourly.map(h => h.canyon_pm25);
+            const sangamPm25 = hourly.map(h => h.sangam_corridor_pm25);
+            const blHeight = hourly.map(h => h.boundary_layer_height_m);
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Modern Canyon PM2.5 (µg/m³)',
+                            data: canyonPm25,
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            fill: true,
+                            tension: 0.3,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Keezhadi Corridor PM2.5 (µg/m³)',
+                            data: sangamPm25,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0.3,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Boundary Layer Height (m)',
+                            data: blHeight,
+                            borderColor: '#38bdf8',
+                            borderDash: [5, 5],
+                            tension: 0.3,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: { ticks: { color: '#64748b', maxTicksLimit: 8 }, grid: { color: '#1e293b' } },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: { display: true, text: 'PM2.5 (µg/m³)', color: '#94a3b8' },
+                            ticks: { color: '#64748b' },
+                            grid: { color: '#1e293b' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: { display: true, text: 'Boundary Layer (m)', color: '#38bdf8' },
+                            ticks: { color: '#64748b' },
+                            grid: { drawOnChartArea: false }
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#94a3b8', font: { size: 11 } } }
+                    }
+                }
+            });
+        }
+
+        async function requestForecastBulletin() {
+            const container = document.getElementById('forecast-bulletin-container');
+            container.classList.remove('hidden');
+            container.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Generating 48-Hour Gemini Atmospheric Bulletin...`;
+
+            try {
+                const res = await fetch('/api/gemini/forecast-report', { method: 'POST' });
+                const data = await res.json();
+                container.innerHTML = marked.parse(data.bulletin);
+            } catch (err) {
+                container.innerHTML = `Failed to generate bulletin: ${err}`;
+            }
+        }
+
+        // 4. BREATHESAFE ROUTE LOGIC
+        function initRouteMap() {
+            routeMap = L.map('route-map', { zoomControl: false }).setView([9.8640, 78.1830], 16);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(routeMap);
+        }
+
+        async function calculateBreatheSafeRoute() {
+            try {
+                const res = await fetch('/api/route', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        start_lat: 9.8615,
+                        start_lon: 78.1810,
+                        end_lat: 9.8665,
+                        end_lon: 78.1855,
+                        transport_mode: 'walking'
+                    })
+                });
+                const data = await res.json();
+
+                // Clear previous layers
+                routeMap.eachLayer(layer => {
+                    if (layer instanceof L.Polyline || layer instanceof L.Marker) {
+                        routeMap.removeLayer(layer);
+                    }
+                });
+
+                // Highway Route (Red)
+                const hwCoords = data.routes.highway_exposure_path.waypoints;
+                L.polyline(hwCoords, { color: '#ef4444', weight: 4, opacity: 0.8 }).addTo(routeMap);
+
+                // BreatheSafe Route (Green)
+                const cleanCoords = data.routes.breathe_safe_path.waypoints;
+                L.polyline(cleanCoords, { color: '#10b981', weight: 4, opacity: 0.9 }).addTo(routeMap);
+
+                // Start and End Markers
+                L.marker(hwCoords[0]).addTo(routeMap).bindPopup("Start: South Gate").openPopup();
+                L.marker(hwCoords[hwCoords.length - 1]).addTo(routeMap).bindPopup("Destination: Vaigai Plaza");
+
+                // Populate Navigation steps
+                const stepsUl = document.getElementById('breathesafe-steps');
+                stepsUl.innerHTML = data.navigation_steps.map(s => `
+                    <li class="flex items-start space-x-2">
+                        <span class="font-bold text-emerald-400">${s.step}.</span>
+                        <span>${s.text} <span class="text-emerald-400 font-semibold">(${s.clean_gain})</span></span>
+                    </li>
+                `).join('');
+            } catch (err) {
+                console.error("Route error:", err);
+            }
+        }
+
+        // 5. CITY PLANNER HOTSPOTS TABLE
+        function populatePlannerHotspots(geoData) {
+            const tbody = document.getElementById('planner-hotspots-tbody');
+            const sorted = [...geoData.features].sort((a, b) => b.properties.aqi - a.properties.aqi).slice(0, 6);
+
+            tbody.innerHTML = sorted.map(f => {
+                const p = f.properties;
+                return `
+                    <tr class="hover:bg-slate-800/40 transition">
+                        <td class="p-3 font-mono font-bold text-emerald-400">${p.id}</td>
+                        <td class="p-3">${p.typology}</td>
+                        <td class="p-3">${p.canyon_hw} : 1</td>
+                        <td class="p-3 font-bold ${p.aqi > 150 ? 'text-rose-400' : 'text-amber-400'}">${p.aqi}</td>
+                        <td class="p-3">${p.cv_ventilation}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${p.stagnation_risk === 'Severe' ? 'bg-rose-500/20 text-rose-300' : 'bg-amber-500/20 text-amber-300'}">${p.stagnation_risk}</span></td>
+                        <td class="p-3 text-right">
+                            <button onclick="triggerMitigationFromTable('${p.id}', ${p.canyon_hw}, ${p.aqi}, ${p.cv_ventilation})" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700">Mitigate</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function triggerMitigationFromTable(id, hw, aqi, cv) {
+            const output = document.getElementById('planner-playbook-output');
+            output.classList.remove('hidden');
+            output.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Formulating Sangam Interventions for ${id}...`;
+            output.scrollIntoView({ behavior: 'smooth' });
+
+            try {
+                const res = await fetch('/api/gemini/planner-mitigation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        block_id: id,
+                        canyon_hw: hw,
+                        aqi: aqi,
+                        dominant_pollutant: 'PM2.5',
+                        cv_ventilation: cv
+                    })
+                });
+                const data = await res.json();
+                output.innerHTML = marked.parse(data.playbook);
+            } catch (err) {
+                output.innerHTML = `Error: ${err}`;
+            }
+        }
+
+        // 6. SANGAM COPILOT CHAT DRAWER
+        function toggleChatDrawer() {
+            const drawer = document.getElementById('chat-drawer');
+            drawer.classList.toggle('translate-x-full');
+        }
+
+        function sendQuickPrompt(promptText) {
+            document.getElementById('chat-input').value = promptText;
+            handleChatSubmit(new Event('submit'));
+        }
+
+        async function handleChatSubmit(e) {
+            e.preventDefault();
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            input.value = '';
+            appendChatMessage('user', text);
+
+            const sendBtn = document.getElementById('chat-send-btn');
+            sendBtn.disabled = true;
+
+            try {
+                const res = await fetch('/api/gemini/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text, history: chatHistory })
+                });
+                const data = await res.json();
+                appendChatMessage('assistant', data.reply);
+                chatHistory.push({ role: 'user', content: text });
+                chatHistory.push({ role: 'assistant', content: data.reply });
+            } catch (err) {
+                appendChatMessage('assistant', `⚠️ Communication error: ${err}`);
+            } finally {
+                sendBtn.disabled = false;
+            }
+        }
+
+        function appendChatMessage(role, content) {
+            const container = document.getElementById('chat-messages');
+            const isUser = role === 'user';
+
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `flex items-start space-x-2 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`;
+
+            const iconDiv = document.createElement('div');
+            iconDiv.className = `w-6 h-6 rounded-md ${isUser ? 'bg-amber-600' : 'bg-emerald-600'} text-white flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5`;
+            iconDiv.innerHTML = isUser ? `<i class="fa-solid fa-user"></i>` : `<i class="fa-solid fa-leaf"></i>`;
+
+            const bodyDiv = document.createElement('div');
+            bodyDiv.className = `${isUser ? 'bg-amber-950/40 border-amber-800/60 rounded-tr-none' : 'bg-slate-800/80 border-slate-700/60 rounded-tl-none'} p-3 rounded-2xl border text-slate-200 leading-relaxed max-w-[85%]`;
+            bodyDiv.innerHTML = marked.parse(content);
+
+            msgDiv.appendChild(iconDiv);
+            msgDiv.appendChild(bodyDiv);
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // 7. API KEY MODAL
+        function openApiKeyModal() {
+            document.getElementById('api-key-modal').classList.remove('hidden');
+        }
+
+        function closeApiKeyModal() {
+            document.getElementById('api-key-modal').classList.add('hidden');
+        }
+
+        async function saveApiKey() {
+            const key = document.getElementById('modal-api-key-input').value.trim();
+            if (!key) return;
+
+            try {
+                const res = await fetch('/api/set-api-key', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ api_key: key })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const pill = document.getElementById('gemini-status-pill');
+                    pill.className = "flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-medium border bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
+                    document.getElementById('gemini-status-text').innerText = "Gemini 2.5 Active";
+                    closeApiKeyModal();
+                    alert("Google Gemini API Key successfully saved for this session!");
+                } else {
+                    alert(data.error || "Failed to save key");
+                }
+            } catch (err) {
+                alert("Error setting API key: " + err);
+            }
+        }
+    </script>
+</body>
+</html>
