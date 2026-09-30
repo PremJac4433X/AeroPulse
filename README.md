@@ -4,7 +4,7 @@
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Google GenAI SDK](https://img.shields.io/badge/Google_GenAI-Gemini_2.5_Flash-4285F4.svg?logo=google&logoColor=white)](https://ai.google.dev/)
-[![Render](https://img.shields.io/badge/Deploy-Render-46E3B7.svg?logo=render&logoColor=white)](https://render.com)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/PremJac4433X/AeroPulse)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
@@ -77,10 +77,9 @@ Open your browser at **`http://localhost:8000`** to experience AeroPulse!
 ## ☁️ Deploying on Render in 2 Minutes
 
 ### Method A: 1-Click Blueprint (Recommended)
-1. Fork or push this repository to your GitHub account: `https://github.com/priyu210824/AeroPulse.git`.
-2. Log into [Render.com](https://render.com).
-3. Click **New +** &rarr; **Blueprint**.
-4. Connect the `AeroPulse` repository. Render will automatically read `render.yaml`:
+1. Click the **Deploy to Render** button above, or go directly to:
+   **[https://render.com/deploy?repo=https://github.com/PremJac4433X/AeroPulse](https://render.com/deploy?repo=https://github.com/PremJac4433X/AeroPulse)**
+2. Render will automatically read `render.yaml`:
    - **Build Command:** `pip install -r requirements.txt`
    - **Start Command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 5. Under Environment Variables, add:
